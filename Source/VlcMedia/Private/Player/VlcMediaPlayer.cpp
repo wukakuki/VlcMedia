@@ -255,10 +255,11 @@ FString FVlcMediaPlayer::GetInfo() const
 }
 
 
-FName FVlcMediaPlayer::GetPlayerName() const
+FGuid FVlcMediaPlayer::GetPlayerPluginGUID() const
 {
-	static FName PlayerName(TEXT("VlcMedia"));
-	return PlayerName;
+	// (0x94ee3f80, 0x8e604292, 0xb4d24dd5, 0xfdade1c2)
+	static FGuid PlayerGUID(0x54343653, 0x45762387, 0xb4d24dd5, 0xfdade1c2);
+	return PlayerGUID;
 }
 
 

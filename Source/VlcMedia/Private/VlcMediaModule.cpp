@@ -75,22 +75,48 @@ public:
 
 		const auto Settings = GetDefault<UVlcMediaSettings>();
 
+		const FString BaseDir = IPluginManager::Get().FindPlugin("VlcMedia")->GetBaseDir();
+		const FString VlcDir = FPaths::Combine(*BaseDir, TEXT("Source"), TEXT("ThirdParty"), TEXT("VLCLibrary"));
+
+#if PLATFORM_LINUX
+		const FString LibDir = FPaths::Combine(*VlcDir, TEXT("Linux"), TEXT("x86_64-unknown-linux-gnu"), TEXT("lib"));
+#elif PLATFORM_MAC
+		const FString LibDir = FPaths::Combine(*VlcDir, TEXT("Mac"));
+#elif PLATFORM_WINDOWS
+		#if PLATFORM_64BITS
+                const FString LibDir = FPaths::Combine(*VlcDir, TEXT("Win64"));
+            #else
+                const FString LibDir = FPaths::Combine(*VlcDir, TEXT("Win32"));
+            #endif
+#endif
+
+        auto LibDirStringCast = StringCast<ANSICHAR>(*(LibDir));
+		setenv("VLC_PLUGIN_PATH", LibDirStringCast.Get(), 1);
+
 		// create LibVLC instance
+		auto DiskCachingStringCast = StringCast<ANSICHAR>(*(FString::Printf(TEXT("--disc-caching=%i"), (int32)Settings->DiscCaching.GetTotalMilliseconds())));
+		auto FileCachingStringCast = StringCast<ANSICHAR>(*(FString::Printf(TEXT("--file-caching=%i"), (int32)Settings->FileCaching.GetTotalMilliseconds())));
+		auto LiveCachingStringCast = StringCast<ANSICHAR>(*(FString::Printf(TEXT("--live-caching=%i"), (int32)Settings->LiveCaching.GetTotalMilliseconds())));
+		auto NetworkCachingStringCast = StringCast<ANSICHAR>(*(FString::Printf(TEXT("--network-caching=%i"), (int32)Settings->NetworkCaching.GetTotalMilliseconds())));
+#if UE_BUILD_DEBUG
+		auto LogfileStringCast = StringCast<ANSICHAR>(*(FString(TEXT("--logfile=")) + LogFilePath));
+#endif
 		const ANSICHAR* Args[] =
 		{
 			// caching
-			TCHAR_TO_ANSI(*(FString::Printf(TEXT("--disc-caching=%i"), (int32)Settings->DiscCaching.GetTotalMilliseconds()))),
-			TCHAR_TO_ANSI(*(FString::Printf(TEXT("--file-caching=%i"), (int32)Settings->FileCaching.GetTotalMilliseconds()))),
-			TCHAR_TO_ANSI(*(FString::Printf(TEXT("--live-caching=%i"), (int32)Settings->LiveCaching.GetTotalMilliseconds()))),
-			TCHAR_TO_ANSI(*(FString::Printf(TEXT("--network-caching=%i"), (int32)Settings->NetworkCaching.GetTotalMilliseconds()))),
+			DiskCachingStringCast.Get(),
+			FileCachingStringCast.Get(),
+			LiveCachingStringCast.Get(),
+			NetworkCachingStringCast.Get(),
 
 			// config
 			"--ignore-config",
+            "--plugin-path", LibDirStringCast.Get(),
 
 			// logging
 #if UE_BUILD_DEBUG
 			"--file-logging",
-			TCHAR_TO_ANSI(*(FString(TEXT("--logfile=")) + LogFilePath)),
+			LogfileStringCast.Get(),
 #endif
 
 #if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
@@ -202,7 +228,7 @@ private:
 		// forward message to log
 		ANSICHAR Message[1024];
 
-		FCStringAnsi::GetVarArgs(Message, ARRAY_COUNT(Message), ARRAY_COUNT(Message) - 1, Format, Args);
+		FCStringAnsi::GetVarArgs(Message, UE_ARRAY_COUNT(Message), Format, Args);
 
 		switch (Level)
 		{
